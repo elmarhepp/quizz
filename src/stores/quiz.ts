@@ -24,6 +24,47 @@ function processQuestion(q: Question): Question {
   }
 }
 
+// Persists for the page session — reset on reload
+let quotaExceeded = false
+const SEP = ' ||| '
+
+async function translateBatch(texts: string[]): Promise<string[]> {
+  if (quotaExceeded) return texts
+  const joined = texts.join(SEP)
+  if (joined.length > 450) return texts  // MyMemory free-tier limit
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(joined)}&langpair=en|de`
+    )
+    const data = await res.json()
+    if (data.quotaFinished) { quotaExceeded = true; return texts }
+    if (data.responseStatus !== 200) return texts
+    const parts: string[] = (data.responseData.translatedText as string).split(SEP)
+    if (parts.length !== texts.length) return texts
+    return parts.map((p, i) => p.trim() || texts[i]!)
+  } catch {
+    return texts
+  }
+}
+
+async function translateQuestion(q: Question): Promise<Question> {
+  const texts = [q.question, q.correct_answer, ...q.incorrect_answers]
+  const translated = await translateBatch(texts)
+  const correct = translated[1] ?? q.correct_answer
+  const incorrect = [
+    translated[2] ?? q.incorrect_answers[0]!,
+    translated[3] ?? q.incorrect_answers[1]!,
+    translated[4] ?? q.incorrect_answers[2]!,
+  ]
+  return {
+    ...q,
+    question: translated[0] ?? q.question,
+    correct_answer: correct,
+    incorrect_answers: incorrect,
+    shuffledAnswers: shuffleArray([correct, ...incorrect]),
+  }
+}
+
 export const useQuizStore = defineStore('quiz', () => {
   const players = ref<Player[]>([])
   const questions = ref<Question[]>([])
@@ -96,7 +137,12 @@ export const useQuizStore = defineStore('quiz', () => {
         }
       }
 
-      questions.value = interleaved
+      // Translate while quota allows; falls back to English silently
+      const translated: Question[] = []
+      for (const q of interleaved) {
+        translated.push(await translateQuestion(q))
+      }
+      questions.value = translated
       currentQuestionIndex.value = 0
       currentPlayerIndex.value = 0
     } catch (e: unknown) {
