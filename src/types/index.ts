@@ -3,6 +3,7 @@ export interface Player {
   name: string
   score: number
   answers: boolean[]
+  jokers: number
 }
 
 export interface Question {
