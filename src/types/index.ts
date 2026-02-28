@@ -4,6 +4,9 @@ export interface Player {
   score: number
   answers: boolean[]
   jokers: number
+  category: string
+  categoryName: string
+  difficulty: 'easy' | 'medium' | 'hard' | 'any'
 }
 
 export interface Question {
@@ -18,9 +21,6 @@ export interface Question {
 
 export interface QuizSettings {
   players: Player[]
-  category: string
-  categoryName: string
-  difficulty: 'easy' | 'medium' | 'hard' | 'any'
   questionCount: number
 }
 

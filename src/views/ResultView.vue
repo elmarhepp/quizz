@@ -101,8 +101,8 @@ function newRound() {
           <div class="text-purple-200 text-sm">Spieler</div>
         </div>
         <div>
-          <div class="text-3xl font-bold text-pink-300">{{ quiz.settings?.categoryName }}</div>
-          <div class="text-purple-200 text-sm">Kategorie</div>
+          <div class="text-3xl font-bold text-pink-300">{{ quiz.settings?.questionCount }}</div>
+          <div class="text-purple-200 text-sm">Fragen/Spieler</div>
         </div>
       </div>
     </div>
