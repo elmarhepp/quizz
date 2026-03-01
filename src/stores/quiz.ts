@@ -102,13 +102,18 @@ export const useQuizStore = defineStore('quiz', () => {
       const res = await fetch(url)
       const data = await res.json()
 
+      if (data.response_code === 5) {
+        // Rate limit — wait 5s and retry
+        await new Promise(r => setTimeout(r, 5000))
+        continue
+      }
       if (data.response_code !== 0) {
         throw new Error('Nicht genügend Fragen verfügbar. Bitte andere Einstellungen wählen.')
       }
 
       results.push(...data.results)
       remaining -= batchAmount
-      if (remaining > 0) await new Promise(r => setTimeout(r, 1000))
+      if (remaining > 0) await new Promise(r => setTimeout(r, 1500))
     }
 
     return results
@@ -116,9 +121,15 @@ export const useQuizStore = defineStore('quiz', () => {
 
   async function fetchForPlayer(amount: number, categories: string[], difficulty: string): Promise<Question[]> {
     if (categories.length === 1) return fetchFromAPI(amount, categories[0]!, difficulty)
+    // Sequential per category to avoid rate limiting
     const perCat = Math.ceil(amount / categories.length)
-    const batches = await Promise.all(categories.map(cat => fetchFromAPI(perCat, cat, difficulty)))
-    return shuffleArray(batches.flat()).slice(0, amount)
+    const results: Question[] = []
+    for (const cat of categories) {
+      const batch = await fetchFromAPI(perCat, cat, difficulty)
+      results.push(...batch)
+      if (results.length < amount) await new Promise(r => setTimeout(r, 1500))
+    }
+    return shuffleArray(results).slice(0, amount)
   }
 
   async function loadQuestions(quizSettings: QuizSettings) {
@@ -128,12 +139,16 @@ export const useQuizStore = defineStore('quiz', () => {
     players.value = quizSettings.players.map(p => ({ ...p, jokers: 2 }))
 
     try {
-      // Fetch questions individually per player with their own settings
-      const perPlayerQuestions = await Promise.all(
-        quizSettings.players.map(player =>
-          fetchForPlayer(quizSettings.questionCount, player.categories, player.difficulty)
+      // Sequential per player to avoid rate limiting
+      const perPlayerQuestions: Question[][] = []
+      for (const player of quizSettings.players) {
+        perPlayerQuestions.push(
+          await fetchForPlayer(quizSettings.questionCount, player.categories, player.difficulty)
         )
-      )
+        if (perPlayerQuestions.length < quizSettings.players.length) {
+          await new Promise(r => setTimeout(r, 1500))
+        }
+      }
 
       // Interleave round by round: [P0Q0, P1Q0, P2Q0, P0Q1, P1Q1, P2Q1, ...]
       const interleaved: Question[] = []
