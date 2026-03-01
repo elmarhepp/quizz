@@ -114,6 +114,13 @@ export const useQuizStore = defineStore('quiz', () => {
     return results
   }
 
+  async function fetchForPlayer(amount: number, categories: string[], difficulty: string): Promise<Question[]> {
+    if (categories.length === 1) return fetchFromAPI(amount, categories[0]!, difficulty)
+    const perCat = Math.ceil(amount / categories.length)
+    const batches = await Promise.all(categories.map(cat => fetchFromAPI(perCat, cat, difficulty)))
+    return shuffleArray(batches.flat()).slice(0, amount)
+  }
+
   async function loadQuestions(quizSettings: QuizSettings) {
     isLoading.value = true
     error.value = null
@@ -124,7 +131,7 @@ export const useQuizStore = defineStore('quiz', () => {
       // Fetch questions individually per player with their own settings
       const perPlayerQuestions = await Promise.all(
         quizSettings.players.map(player =>
-          fetchFromAPI(quizSettings.questionCount, player.category, player.difficulty)
+          fetchForPlayer(quizSettings.questionCount, player.categories, player.difficulty)
         )
       )
 

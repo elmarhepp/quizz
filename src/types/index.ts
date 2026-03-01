@@ -4,8 +4,8 @@ export interface Player {
   score: number
   answers: boolean[]
   jokers: number
-  category: string
-  categoryName: string
+  categories: string[]
+  categoryNames: string[]
   difficulty: 'easy' | 'medium' | 'hard' | 'any'
 }
 
