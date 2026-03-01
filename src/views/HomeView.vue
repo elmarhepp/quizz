@@ -112,8 +112,15 @@ async function startGame() {
 
     <!-- Loading -->
     <div v-if="quizStore.isLoading" class="bg-white/10 backdrop-blur-md rounded-2xl p-8 w-full max-w-md text-center border border-white/20">
-      <div class="text-4xl mb-3 animate-bounce">⏳</div>
-      <p class="text-white font-bold">Lade Fragen...</p>
+      <div class="text-4xl mb-4 animate-bounce">⏳</div>
+      <p class="text-white font-semibold mb-1">{{ quizStore.loadingMessage || 'Wird vorbereitet…' }}</p>
+      <p class="text-white/50 text-sm mb-4">{{ quizStore.loadingProgress }}%</p>
+      <div class="w-full bg-white/20 rounded-full h-3 overflow-hidden">
+        <div
+          class="h-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
+          :style="{ width: quizStore.loadingProgress + '%' }"
+        />
+      </div>
     </div>
 
     <!-- Setup Card -->

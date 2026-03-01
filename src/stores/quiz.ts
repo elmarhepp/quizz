@@ -71,6 +71,8 @@ export const useQuizStore = defineStore('quiz', () => {
   const currentQuestionIndex = ref(0)
   const currentPlayerIndex = ref(0)
   const isLoading = ref(false)
+  const loadingProgress = ref(0)
+  const loadingMessage = ref('')
   const error = ref<string | null>(null)
   const settings = ref<QuizSettings | null>(null)
 
@@ -134,18 +136,27 @@ export const useQuizStore = defineStore('quiz', () => {
 
   async function loadQuestions(quizSettings: QuizSettings) {
     isLoading.value = true
+    loadingProgress.value = 0
+    loadingMessage.value = ''
     error.value = null
     settings.value = quizSettings
     players.value = quizSettings.players.map(p => ({ ...p, jokers: 2 }))
 
+    const n = quizSettings.players.length
+    // 70% for fetching, 30% for translating
+    const fetchShare = 70 / n
+
     try {
       // Sequential per player to avoid rate limiting
       const perPlayerQuestions: Question[][] = []
-      for (const player of quizSettings.players) {
+      for (let i = 0; i < quizSettings.players.length; i++) {
+        const player = quizSettings.players[i]!
+        loadingMessage.value = `Lade Fragen für ${player.name} (${i + 1}/${n})…`
+        loadingProgress.value = Math.round(i * fetchShare)
         perPlayerQuestions.push(
           await fetchForPlayer(quizSettings.questionCount, player.categories, player.difficulty)
         )
-        if (perPlayerQuestions.length < quizSettings.players.length) {
+        if (i < quizSettings.players.length - 1) {
           await new Promise(r => setTimeout(r, 1500))
         }
       }
@@ -161,9 +172,14 @@ export const useQuizStore = defineStore('quiz', () => {
 
       // Translate while quota allows; falls back to English silently
       const translated: Question[] = []
-      for (const q of interleaved) {
-        translated.push(await translateQuestion(q))
+      const total = interleaved.length
+      for (let i = 0; i < interleaved.length; i++) {
+        loadingMessage.value = `Übersetze Fragen… (${i + 1}/${total})`
+        loadingProgress.value = 70 + Math.round((i / total) * 30)
+        translated.push(await translateQuestion(interleaved[i]!))
       }
+
+      loadingProgress.value = 100
       questions.value = translated
       currentQuestionIndex.value = 0
       currentPlayerIndex.value = 0
@@ -220,6 +236,8 @@ export const useQuizStore = defineStore('quiz', () => {
     currentQuestionIndex,
     currentPlayerIndex,
     isLoading,
+    loadingProgress,
+    loadingMessage,
     error,
     settings,
     currentQuestion,
